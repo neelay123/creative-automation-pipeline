@@ -1,0 +1,15 @@
+{
+  "product": "eco_water_bottle",
+  "target_region": "North America",
+  "target_audience": "Environmentally conscious millennials, ages 25-40",
+  "campaign_message": "Stay hydrated sustainably with our premium eco-friendly water bottle",
+  "brand_colors": [
+    "#2E7D32",
+    "#81C784"
+  ],
+  "key_features": [
+    "100% recycled materials",
+    "Keeps drinks cold for 24 hours",
+    "Leak-proof design"
+  ]
+}
