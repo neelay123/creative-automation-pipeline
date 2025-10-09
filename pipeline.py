@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Creative Automation Pipeline for Social Ad Campaigns
-Uses Google Gemini API for image generation
+Uses Google Gemini 2.5 Flash Image model (recommended for image generation)
 """
 
 import json
@@ -11,7 +11,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional
 import sys
+from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv()
 
 try:
     from google import genai
@@ -27,38 +30,41 @@ except ImportError:
 class CreativeAutomationPipeline:
     """Main pipeline class for automating creative asset generation"""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, model: str = 'gemini-2.5-flash-image'):
         """
         Initialize the pipeline with Google Gemini API
 
         Args:
             api_key: Google Gemini API key (defaults to GEMINI_API_KEY env var)
+            model: Model name (default: gemini-2.5-flash-image)
         """
         self.api_key = api_key or os.environ.get('GEMINI_API_KEY')
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY not found. Set environment variable or pass as argument.")
 
         self.client = genai.Client(api_key=self.api_key)
+        self.model = model
         self.output_dir = Path('generated_assets')
         self.output_dir.mkdir(exist_ok=True)
 
         # Aspect ratios for different platforms
         self.aspect_ratios = {
-            '1:1': (1024, 1024),    # Instagram feed, Facebook post
-            '9:16': (576, 1024),    # Instagram/Facebook Stories
-            '16:9': (1024, 576)     # Display ads, YouTube
+            '1x1': (1024, 1024),    # Instagram feed, Facebook post
+            '9x16': (576, 1024),    # Instagram/Facebook Stories
+            '16x9': (1024, 576)     # Display ads, YouTube
         }
 
+        # Mapping for display purposes
+        self.aspect_ratio_display = {
+            '1x1': '1:1',
+            '9x16': '9:16',
+            '16x9': '16:9'
+        }
+
+        print(f"✓ Initialized with model: {self.model}")
+
     def load_campaign_brief(self, brief_path: str) -> Dict:
-        """
-        Load campaign brief from JSON or YAML file
-
-        Args:
-            brief_path: Path to campaign brief file
-
-        Returns:
-            Parsed campaign brief dictionary
-        """
+        """Load campaign brief from JSON or YAML file"""
         brief_file = Path(brief_path)
 
         if not brief_file.exists():
@@ -74,46 +80,51 @@ class CreativeAutomationPipeline:
                 raise ValueError("Brief must be JSON or YAML format")
 
     def check_existing_assets(self, product: str, aspect_ratio: str) -> Optional[Path]:
-        """
-        Check if assets already exist for product and aspect ratio
-
-        Args:
-            product: Product name/ID
-            aspect_ratio: Aspect ratio (e.g., '1:1')
-
-        Returns:
-            Path to existing asset or None
-        """
+        """Check if assets already exist for product and aspect ratio"""
         asset_path = self.output_dir / product / aspect_ratio
         if asset_path.exists() and list(asset_path.glob('*.png')):
-            print(f"✓ Found existing assets for {product} ({aspect_ratio})")
+            display_ratio = self.aspect_ratio_display.get(aspect_ratio, aspect_ratio)
+            print(f"✓ Found existing assets for {product} ({display_ratio})")
             return asset_path
         return None
 
-    def generate_image_prompt(self, brief: Dict, aspect_ratio: str) -> str:
-        """
-        Generate detailed prompt for image generation
-
-        Args:
-            brief: Campaign brief dictionary
-            aspect_ratio: Target aspect ratio
-
-        Returns:
-            Formatted prompt string
-        """
-        product = brief.get('product', '')
+    def generate_image_prompt(self, brief: Dict, aspect_ratio: str, variant_num: int) -> str:
+        """Generate detailed prompt for image generation"""
+        product = brief.get('product', '').replace('_', ' ').title()
         audience = brief.get('target_audience', 'general audience')
         message = brief.get('campaign_message', '')
         region = brief.get('target_region', 'global')
+        features = brief.get('key_features', [])
+
+        display_ratio = self.aspect_ratio_display.get(aspect_ratio, aspect_ratio)
+
+        # Create variation cues for different variants
+        variant_styles = [
+            "lifestyle shot with natural lighting",
+            "close-up product detail with premium aesthetic",
+            "environmental context showing product in use"
+        ]
+        style_cue = variant_styles[(variant_num - 1) % len(variant_styles)]
 
         # Build contextual prompt
-        prompt = f"""Create a high-quality professional marketing image for {product}.
+        prompt = f"""Create a professional marketing photograph for {product}.
+
+Style: {style_cue}
 Target audience: {audience}
-Campaign message: {message}
+Message: {message}
 Market: {region}
-Style: Modern, clean, professional social media advertisement
-Include: Product prominently displayed, attractive composition, brand-appropriate colors
-Format: {aspect_ratio} aspect ratio suitable for social media"""
+
+Visual requirements:
+- Product prominently displayed and clearly visible
+- Professional studio-quality lighting
+- Clean, modern composition
+- Brand-appropriate colors and aesthetic
+- High-quality, photo-realistic rendering
+- Suitable for {display_ratio} social media format
+
+{f'Key features to highlight: {", ".join(features[:2])}' if features else ''}
+
+Create an eye-catching, professional marketing image that would perform well in social media advertising."""
 
         return prompt
 
@@ -123,17 +134,7 @@ Format: {aspect_ratio} aspect ratio suitable for social media"""
         aspect_ratio: str,
         variant_num: int = 1
     ) -> Path:
-        """
-        Generate a single creative asset using Gemini API
-
-        Args:
-            brief: Campaign brief dictionary
-            aspect_ratio: Target aspect ratio
-            variant_num: Variant number for naming
-
-        Returns:
-            Path to generated image
-        """
+        """Generate a single creative asset using Gemini API"""
         product = brief.get('product', 'unknown_product')
 
         # Create output directory structure
@@ -141,18 +142,21 @@ Format: {aspect_ratio} aspect ratio suitable for social media"""
         product_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate prompt
-        prompt = self.generate_image_prompt(brief, aspect_ratio)
+        prompt = self.generate_image_prompt(brief, aspect_ratio, variant_num)
 
-        print(f"\nGenerating {aspect_ratio} asset for {product} (variant {variant_num})...")
+        display_ratio = self.aspect_ratio_display.get(aspect_ratio, aspect_ratio)
+        print(f"\nGenerating {display_ratio} asset for {product} (variant {variant_num})...")
 
         try:
             # Call Gemini API for image generation
+            # gemini-2.5-flash-image handles image generation natively
             response = self.client.models.generate_content(
-                model='gemini-2.0-flash-exp',
+                model=self.model,
                 contents=[prompt]
             )
 
             # Extract and save image
+            image_found = False
             for part in response.candidates[0].content.parts:
                 if part.inline_data is not None:
                     image = Image.open(BytesIO(part.inline_data.data))
@@ -163,38 +167,30 @@ Format: {aspect_ratio} aspect ratio suitable for social media"""
 
                     # Save image
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    filename = f"{product}_{aspect_ratio.replace(':', 'x')}_v{variant_num}_{timestamp}.png"
+                    filename = f"{product}_{aspect_ratio}_v{variant_num}_{timestamp}.png"
                     output_path = product_dir / filename
 
                     image.save(output_path)
                     print(f"✓ Saved: {output_path}")
+                    image_found = True
                     return output_path
+                elif part.text is not None:
+                    print(f"  Response text: {part.text[:150]}...")
 
-            raise Exception("No image data in response")
+            if not image_found:
+                raise Exception(f"No image data in response from {self.model}")
 
         except Exception as e:
             print(f"✗ Error generating asset: {str(e)}")
             raise
 
     def generate_campaign_message(self, brief: Dict, locale: str = 'en') -> str:
-        """
-        Generate localized campaign message
-
-        Args:
-            brief: Campaign brief dictionary
-            locale: Target locale (default: 'en' for English)
-
-        Returns:
-            Localized campaign message
-        """
+        """Generate localized campaign message"""
         base_message = brief.get('campaign_message', '')
 
-        # For POC, return English message
-        # In production, integrate translation API
         if locale == 'en':
             return base_message
 
-        # Placeholder for localization
         print(f"Note: Localization for '{locale}' not yet implemented. Using English.")
         return base_message
 
@@ -204,17 +200,7 @@ Format: {aspect_ratio} aspect ratio suitable for social media"""
         num_variants: int = 3,
         skip_existing: bool = True
     ) -> Dict[str, List[Path]]:
-        """
-        Run complete pipeline for campaign brief
-
-        Args:
-            brief_path: Path to campaign brief file
-            num_variants: Number of variants to generate per aspect ratio
-            skip_existing: Skip generation if assets exist
-
-        Returns:
-            Dictionary mapping aspect ratios to generated asset paths
-        """
+        """Run complete pipeline for campaign brief"""
         print("="*60)
         print("Creative Automation Pipeline - Starting")
         print("="*60)
@@ -232,12 +218,13 @@ Format: {aspect_ratio} aspect ratio suitable for social media"""
 
         # Generate assets for each aspect ratio
         for aspect_ratio in self.aspect_ratios.keys():
-            print(f"\n--- Processing {aspect_ratio} aspect ratio ---")
+            display_ratio = self.aspect_ratio_display[aspect_ratio]
+            print(f"\n--- Processing {display_ratio} aspect ratio ---")
 
             # Check for existing assets
             if skip_existing and self.check_existing_assets(product, aspect_ratio):
                 existing_path = self.output_dir / product / aspect_ratio
-                results[aspect_ratio] = list(existing_path.glob('*.png'))
+                results[display_ratio] = list(existing_path.glob('*.png'))
                 continue
 
             # Generate variants
@@ -249,7 +236,7 @@ Format: {aspect_ratio} aspect ratio suitable for social media"""
                 except Exception as e:
                     print(f"Failed to generate variant {i}: {str(e)}")
 
-            results[aspect_ratio] = variant_paths
+            results[display_ratio] = variant_paths
 
         # Generate campaign message
         print("\n--- Campaign Message ---")
@@ -296,11 +283,17 @@ def main():
         '--api-key',
         help='Google Gemini API key (optional, uses GEMINI_API_KEY env var)'
     )
+    parser.add_argument(
+        '--model',
+        default='gemini-2.5-flash-image',
+        choices=['gemini-2.5-flash-image', 'gemini-2.0-flash-exp'],
+        help='Model to use for image generation (default: gemini-2.5-flash-image)'
+    )
 
     args = parser.parse_args()
 
     try:
-        pipeline = CreativeAutomationPipeline(api_key=args.api_key)
+        pipeline = CreativeAutomationPipeline(api_key=args.api_key, model=args.model)
         pipeline.run_pipeline(
             args.brief,
             num_variants=args.variants,
