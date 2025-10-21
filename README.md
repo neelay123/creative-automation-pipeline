@@ -208,6 +208,26 @@ Expected output:
 
 ## 📊 Proof-of-Execution Demo Results
 
+### Json File
+>**sample_briefs/wireless_earbuds_brief.json**
+```
+{
+  "product": "wireless_earbuds_pro",
+  "target_region": "Europe",
+  "target_audience": "Tech enthusiasts and professionals, ages 20-45",
+  "campaign_message": "Premium sound meets seamless connectivity - Experience audio excellence",
+  "brand_colors": [
+    "#1976D2",
+    "#424242"
+  ],
+  "key_features": [
+    "Active noise cancellation",
+    "30-hour battery life",
+    "Premium audio quality"
+  ]
+}
+```
+
 ### **1. Command Line Output**
 
 ```
