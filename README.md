@@ -204,6 +204,80 @@ Expected output:
 - PNG files with proper naming convention
 - Organized directory structure
 
+
+
+## 📊 Proof-of-Execution Demo Results
+
+### **1. Command Line Output**
+
+```
+$ python pipeline.py sample_briefs/wireless_earbuds_brief.json --variants 5
+✓ Initialized with model: gemini-2.5-flash-image
+============================================================
+Creative Automation Pipeline - Starting
+============================================================
+Product: wireless_earbuds_pro
+Target Region: Europe
+Target Audience: Tech enthusiasts and professionals, ages 20-45
+Campaign Message: Premium sound meets seamless connectivity - Experience audio excellence
+...
+--- Processing 1:1 aspect ratio ---
+Generating 1:1 asset for wireless_earbuds_pro (variant 1)...
+✓ Saved: generated_assets/wireless_earbuds_pro/1x1/wireless_earbuds_pro_1x1_v1_20251008_043220.png
+...
+--- Processing 9:16 aspect ratio ---
+Generating 9:16 asset for wireless_earbuds_pro (variant 3)...
+✓ Saved: generated_assets/wireless_earbuds_pro/9x16/wireless_earbuds_pro_9x16_v3_20251008_043311.png
+...
+--- Processing 16:9 aspect ratio ---
+Generating 16:9 asset for wireless_earbuds_pro (variant 3)...
+✓ Saved: generated_assets/wireless_earbuds_pro/16x9/wireless_earbuds_pro_16x9_v3_20251008_043352.png
+...
+============================================================
+Pipeline Complete - Summary
+============================================================
+Total assets generated: 15
+  1:1: 5 variants
+  9:16: 5 variants
+  16:9: 5 variants
+Output directory: generated_assets/wireless_earbuds_pro
+============================================================
+```
+
+***
+
+### **2. Output Folder Structure**
+```
+generated_assets/
+└── wireless_earbuds_pro/
+    ├── 1x1/
+    │   ├── wireless_earbuds_pro_1x1_v1_20251008_043220.png
+    │   ├── wireless_earbuds_pro_1x1_v2_20251008_043226.png
+    │   ├── ...
+    ├── 9x16/
+    │   ├── wireless_earbuds_pro_9x16_v3_20251008_043311.png
+    │   ├── ...
+    └── 16x9/
+        ├── wireless_earbuds_pro_16x9_v3_20251008_043352.png
+        ├── ...
+```
+
+***
+
+### **3. Sample Generated Images**
+
+> **Sample Outputs:**
+
+
+<img width="1024" height="1024" alt="wireless_earbuds_pro_1x1_v2_20251008_043226" src="https://github.com/user-attachments/assets/000507c5-2a8e-4f0f-aad6-bd4efa11365a" />
+
+
+<img width="1024" height="1024" alt="wireless_earbuds_pro_1x1_v1_20251008_043220" src="https://github.com/user-attachments/assets/8a698fe8-b3df-47ed-a8bd-283b5bfe3418" />
+
+
+<img width="1024" height="1024" alt="wireless_earbuds_pro_1x1_v5_20251008_043249" src="https://github.com/user-attachments/assets/ff1db23d-3285-4f80-8dcb-e851416809c7" />
+
+
 ## 🔒 Security & Best Practices
 
 - **API Key Management**: Never commit API keys to version control
